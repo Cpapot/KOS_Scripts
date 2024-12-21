@@ -16,6 +16,4 @@ FUNCTION printMissionInfo {
 	betterPrint("Launch to an orbit", 0).
 	betterPrint("Orbit altitude: " + orbit_altitude + "m", 0).
 	betterPrint("Orbit inclination: " + orbit_inclination + "°", 1).
-
-	//draw_target_orbit(orbit_altitude, orbit_inclination).
 }
