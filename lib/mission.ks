@@ -10,6 +10,9 @@ FUNCTION abortMission {
 }
 
 FUNCTION printMissionInfo {
+	set Terminal:WIDTH to 70.
+	set Terminal:HEIGHT to 10.
+
 	parameter orbit_altitude, orbit_inclination.
 
 	betterPrint("Mission information:", 0).

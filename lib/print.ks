@@ -1,3 +1,7 @@
+SET voice TO getVoice(0).
+SET voiceTickNote TO NOTE(480, 0.1).
+SET voiceTakeOffNote TO NOTE(720, 0.1).
+
 function betterPrint {
 	parameter message. // string to print
 	parameter newline. // 1 if a newline should be added, 0 otherwise
@@ -22,6 +26,7 @@ function countdown {
 	FROM {SET i TO seconds.} UNTIL i < 0 STEP {SET i TO i - 1.} DO {
 		WAIT 1.
 		betterPrint("T-" + i + " seconds", 0).
+		voice:PLAY(voiceTickNote).
 	}
 	print "".
 }
@@ -34,5 +39,6 @@ function countup {
 	FROM {SET i TO 1.} UNTIL i > seconds STEP {SET i TO i + 1.} DO {
 		WAIT 1.
 		betterPrint("T+" + i + " seconds", 0).
+		voice:PLAY(voiceTakeOffNote).
 	}
 }

@@ -13,8 +13,8 @@ RUNPATH("0:/boot/lib/launch.ks").
 
 SET abort TO FALSE.
 
-SET orientation_start_altitude TO 500.
-SET orientation_end_altitude TO 5000.
+SET orientation_start_altitude TO 5000.
+SET orientation_end_altitude TO 10000.
 
 // Print a message and set is_finish to true
 FUNCTION incorrectParams {
@@ -61,7 +61,10 @@ function CirculizeOrbit {
 		betterPrint("Estimated burn time: " + burn_time + " seconds", 1).
 
 		betterPrint("Waiting until apoapsis", 3).
+
+		SET kuniverse:timewarp:rate TO 100.  // Vous pouvez ajuster le niveau de warp selon vos besoins
 		WAIT UNTIL ETA:APOAPSIS < burn_time / 2 + 10.
+		SET kuniverse:timewarp:rate TO 1.  // Retour à la vitesse normale
 
 		betterPrint("Aligning with prograde", 3).
 		LOCK STEERING TO SHIP:VELOCITY:ORBIT.
@@ -78,14 +81,14 @@ function CirculizeOrbit {
 
 			IF apoapsis_phase {
 				IF apoapsis_error > 0 {
-					LOCK STEERING TO RETROGRADE.
+					LOCK STEERING TO HEADING(orbit_inclination, 180). //retrograde
 				} ELSE {
-					LOCK STEERING TO PROGRADE.
+					LOCK STEERING TO HEADING(orbit_inclination, 0). //prograde
 				}
 				IF periapsis_error > 0 {
-					LOCK STEERING TO RETROGRADE.
+					LOCK STEERING TO HEADING(orbit_inclination, 180). //retrograde
 				} ELSE {
-					LOCK STEERING TO PROGRADE.
+					LOCK STEERING TO HEADING(orbit_inclination, 0). //prograde
 				}
 				IF SHIP:orbit:periapsis > orbit_altitude {
 					betterPrint("periapsis at the right altitude", 1).
@@ -97,16 +100,27 @@ function CirculizeOrbit {
 				IF ABS(apoapsis_error) > ABS(periapsis_error) {
 					// If apoapsis needs more correction, wait until periapsis
 					IF ABS(ETA:PERIAPSIS) < 30 OR ETA:PERIAPSIS > TIME:SECONDS + 30 {
-						LOCK STEERING TO RETROGRADE.
+						LOCK STEERING TO HEADING(orbit_inclination, 180). //retrograde
 					} ELSE {
 						SET SHIP:CONTROL:PILOTMAINTHROTTLE TO 0.
 						betterPrint("Waiting until periapsis", 3).
-						WAIT UNTIL ETA:PERIAPSIS < 30.
+						IF ETA:PERIAPSIS > 30 {
+							IF ETA:PERIAPSIS > 1000 {
+								SET kuniverse:timewarp:rate TO 100.
+							}
+							ELSE IF  ETA:PERIAPSIS > 500 {
+								SET kuniverse:timewarp:rate TO 10.
+							}
+							WAIT UNTIL ETA:PERIAPSIS < 100.
+							SET kuniverse:timewarp:rate TO 5.
+							WAIT UNTIL ETA:PERIAPSIS < 30.
+							SET kuniverse:timewarp:rate TO 1.  // Retour à la vitesse normale
+						}
 					}
 				} ELSE {
 					// If periapsis needs more correction, wait until apoapsis
 					IF ABS(ETA:APOAPSIS) < 30 OR ETA:APOAPSIS > TIME:SECONDS + 30 {
-						LOCK STEERING TO PROGRADE.
+						LOCK STEERING TO HEADING(orbit_inclination, 0). //prograde
 					} ELSE {
 						SET SHIP:CONTROL:PILOTMAINTHROTTLE TO 0.
 						betterPrint("Waiting until apoapsis", 3).
@@ -122,7 +136,9 @@ function CirculizeOrbit {
 				SET SHIP:CONTROL:PILOTMAINTHROTTLE TO 1.
 			}
 
-			stageIfOneThrustEmpty().
+			if (stageIfOneThrustEmpty() = FALSE) {
+				RETURN FALSE.
+			}
 			WAIT 0.1.
 		}
 	}
@@ -130,11 +146,13 @@ function CirculizeOrbit {
 	SET SHIP:CONTROL:PILOTMAINTHROTTLE TO 0.
 	betterPrint("Orbit circularized", 1).
 	betterPrint("Error Margin : " + ABS(SHIP:ORBIT:APOAPSIS - SHIP:ORBIT:PERIAPSIS) + " meters", 1).
+	RETURN TRUE.
 }
 
-FUNCTION main {
+function orbitalLaunch {
 	parameter orbit_altitude.
 	parameter orbit_inclination.
+	parameter info.
 
 	set orbit_altitude to orbit_altitude * 1000.
 
@@ -144,15 +162,23 @@ FUNCTION main {
 		RETURN.
 	}
 
-	printMissionInfo(orbit_altitude, orbit_inclination).
+	if (info = TRUE) {
+		printMissionInfo(orbit_altitude, orbit_inclination).
+	}
 
-	lauching(orientation_start_altitude).
+	if (lauching(orientation_start_altitude) = FALSE) {
+		RETURN.
+	}
 
-	gradualTurn(orientation_start_altitude ,orientation_end_altitude, orbit_inclination).
+	if (gradualTurn(orientation_start_altitude ,orientation_end_altitude, orbit_inclination) = FALSE) {
+		RETURN.
+	}
 
 	betterPrint("Acceleration until the apoasis height is at the desired orbit", 3).
 	UNTIL apoapsis > orbit_altitude {
-		stageIfOneThrustEmpty().
+		IF stageIfOneThrustEmpty() = FALSE {
+			RETURN.
+		}
 		SET SHIP:CONTROL:PILOTMAINTHROTTLE TO 1.
 		LOCK STEERING TO HEADING(orbit_inclination, 45).
 		WAIT 0.1.
@@ -161,7 +187,17 @@ FUNCTION main {
 	wait 0.1.
 	SET SHIP:CONTROL:PILOTMAINTHROTTLE TO 0.
 
-	CirculizeOrbit(orbit_altitude, orbit_inclination).
+	if (CirculizeOrbit(orbit_altitude, orbit_inclination) = FALSE) {
+		RETURN.
+	}
 }
 
-main(100, 80).
+
+FUNCTION RunOrbitalLaunch {
+	parameter orbit_altitude.
+	parameter orbit_inclination.
+
+	orbitalLaunch(orbit_altitude, orbit_inclination, TRUE).
+}
+
+//RunOrbitalLaunch(400, 90).

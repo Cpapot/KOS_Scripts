@@ -24,10 +24,13 @@ FUNCTION lauching {
 
 	UNTIL SHIP:ALTITUDE > start_altitude {
 		LOCK STEERING TO UP + R(0,0,0).
-		stageIfOneThrustEmpty().
+		IF stageIfOneThrustEmpty() = FALSE {
+			RETURN FALSE.
+		}
 		SET SHIP:CONTROL:PILOTMAINTHROTTLE TO 1.
 		WAIT 0.1.
 	}
+	RETURN TRUE.
 }
 
 // gradully turn the rocket to be at the target inclination at the max altitude
@@ -45,9 +48,11 @@ FUNCTION gradualTurn {
 
 		LOCK STEERING TO HEADING(target_inclination, pitch).
 		SET SHIP:CONTROL:PILOTMAINTHROTTLE TO 1.
-		stageIfOneThrustEmpty().
+		IF stageIfOneThrustEmpty() = FALSE {
+			RETURN FALSE.
+		}
 		WAIT 0.1.
 	}
-
 	betterPrint("Orientation reached", 1).
+	RETURN TRUE.
 }
